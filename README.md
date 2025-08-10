@@ -125,6 +125,11 @@ TranAD子类继承如下图:
 
  pot（Peak Over Threshold，峰值超过阈值）算法的目的是通过训练集的所有异常分数自动的选择判断异常的阈值，不用人为规定阈值，具体的步骤为：首先选择异常分数的98%分位数作为初始阈值，超过98%数据的异常分数（即重构误差较大的值）即为很少量的峰值，这些峰值近似服从广义帕累托分布（极端值的分布几乎独立于原始数据的分布，这一点与中心极限定理类似），用帕累托曲线拟合这些峰值数据（计算得到GDF的两个参数），最大似然估计（MLE）来估计参数gamma和beta经过一个阈值计算式确定最终的用于判断异常的阈值。
   <img width="352" height="162" alt="5baa76da8e085671f1ea8d397d1f9d6" src="https://github.com/user-attachments/assets/5c021367-f3e5-4806-8d22-acda6042544f" />
+<br>
+下图展示了pot算法的调整，参考论文<br>
+Abdulaal, Ahmed et al. "Practical Approach to Asynchronous Multivariate Time Series Anomaly Detection and Localization.",ACM SIGKDD Conference on Knowledge Discovery and Data Mining (2021)
+  <img width="1314" height="782" alt="image" src="https://github.com/user-attachments/assets/4cb61443-e8f9-43be-8494-475ebd28ace0" />
+
 
 **spot算法**
   spot 算法则是把 pot 算法应用于流数据。它首先利用 pot 算法估计前 n 个值，得到初始异常阈值。对于后续数据，可进行异常标注或者更新阈值，若观测数据超过该阈值则视为异常，且异常值不用来更新阈值。不过，spot 算法要求数据比较稳定，值的分布没有明显的偏移情况。 
