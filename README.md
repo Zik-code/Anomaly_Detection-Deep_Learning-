@@ -125,6 +125,11 @@ TranAD子类继承如下图:
 
  pot（Peak Over Threshold，峰值超过阈值）算法的目的是通过训练集的所有异常分数自动的选择判断异常的阈值，不用人为规定阈值，具体的步骤为：首先选择异常分数的98%分位数作为初始阈值，超过98%数据的异常分数（即重构误差较大的值）即为很少量的峰值，这些峰值近似服从广义帕累托分布（极端值的分布几乎独立于原始数据的分布，这一点与中心极限定理类似），用帕累托曲线拟合这些峰值数据（计算得到GDF的两个参数），最大似然估计（MLE）来估计参数gamma和beta经过一个阈值计算式确定最终的用于判断异常的阈值。
   <img width="352" height="162" alt="5baa76da8e085671f1ea8d397d1f9d6" src="https://github.com/user-attachments/assets/5c021367-f3e5-4806-8d22-acda6042544f" />
+<br>
+下图展示了pot算法的调整，参考论文<br>
+Abdulaal, Ahmed et al. "Practical Approach to Asynchronous Multivariate Time Series Anomaly Detection and Localization.",ACM SIGKDD Conference on Knowledge Discovery and Data Mining (2021)
+  <img width="1314" height="782" alt="image" src="https://github.com/user-attachments/assets/4cb61443-e8f9-43be-8494-475ebd28ace0" />
+
 
 **spot算法**
   spot 算法则是把 pot 算法应用于流数据。它首先利用 pot 算法估计前 n 个值，得到初始异常阈值。对于后续数据，可进行异常标注或者更新阈值，若观测数据超过该阈值则视为异常，且异常值不用来更新阈值。不过，spot 算法要求数据比较稳定，值的分布没有明显的偏移情况。 
@@ -152,3 +157,42 @@ TranAD子类继承如下图:
 | ROC/AUC   | ROC 曲线下的面积（ROC 曲线基于不同阈值下 TPR 和 FPR 绘制）         | 基于所有可能阈值下，TPR（召回率）与 FPR（假正率）的曲线面积计算    | 衡量模型**区分异常与正常样本的能力**，与阈值无关，值越接近 1 区分能力越强 |
 
 
+<<<<<<< HEAD
+=======
+超参数设置与原论文保持一致
+
+参数设置如下表:<br>
+### 参数设置 
+
+| 模型       | 超参数配置                                                                 |
+|------------|--------------------------------------------------------------------------|
+| OmniAnomaly | • batch_size: 128<br>• window_size: 10                                   |
+| TranAD     | • batch_size: 128<br>• window_size: 10                                   |
+| TFMAE      | • batch_size: 64<br>• window_size: 10<br>• Frequency Masking Ratio: SMD(20%)、SMAP(30%)、MSL(40%)<br>• Temporal Masking Ratio: SMD(5%)、SMAP(65%)、MSL(55%) |
+| DTAAD      | 见下图 |
+| USAD       |       见下图                          |
+
+
+DTAAD  <br>                        
+<img width="567" height="197" alt="image" src="https://github.com/user-attachments/assets/26e3a797-9447-4384-8c3f-3503e3f00099" />
+
+USAD <br>
+![img.png](Hyper-parameters/img.png)
+
+
+lr(学习率):
+'SMD': 0.0001,
+'SMAP': 0.001,
+'MSL': 0.002,
+
+
+
+| model       |        | SMD    |        |        |        | MSL    |        |        |        | SMAP   |        |        |
+|-------------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|
+|             | F1     | AUC    | R      | P      | F1     | AUC    | R      | P      | F1     | AUC    | R      | P      |
+| OnmiAnomaly | 0.9400 | 0.9945 | 0.9984 | 0.8880 | 0.8764 | 0.9781 | 0.9923 | 0.8713   | 0.8727 | 0.9888 | 0.9418 | 0.8129 |
+| USAD        | 0.9430 | 0.9926 | 0.9973 | 0.9038 | 0.9495 | 0.9916 | 0.9999 | 0.8414  | 0.8419 | 0.9890 | 0.9627 | 0.7480 |
+| TranAD      | 0.9981 | 0.9986 | 0.9974 | 0.9988 | 0.9480 | 0.9912 | 0.9999 | 0.9011 | 0.8915 | 0.9921 | 0.9999 | 0.8043 |
+| TEMAE       | 0.9124 | 0.9045 | 0.9107 | 0.9141 | 0.9515 | 0.9915 | 0.9759 | 0.9283 | 0.9690 | 0.9923 | 0.9919 | 0.9471 |
+| DTAAD       | 0.9974 | 0.9986 | 0.9974 | 0.9981 | 0.9495 | 0.9916 | 0.9999 | 0.9038 | 0.9023 | 0.9912 | 0.9999 | 0.8220 |
+>>>>>>> 204efc67d93dac0a48991cf61821ad510390f07b
