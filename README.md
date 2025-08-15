@@ -1,198 +1,159 @@
 
-### 一、项目简介
-这是一个基于TranAD和DTAAD基线模型集成了几个深度学习模型对时序数据进行异常检测的项目。
+### 一、Project Introduction
+This is a project that integrates several deep learning models based on the TranAD and DTAAD baseline models for anomaly detection in time-series data.
 
 ### 二、运行项目
-安装python以及pytorch 
+Install Python >= 3.7 and PyTorch<br>
+ 
+Please execute the following command to install PyTorch:
 
-项目需要python 3.7以上的版本。 
-请执行以下命令安装pytorch
 ```python
 pip install torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio===0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
 ```
-请执行以下命令安装所需库 
+Please execute the following command to install the required libraries:<br>
 
 ```python
 pip install -r requirements.txt
 ```
-本项目用到的数据集已经经过预处理并放置在processed_data文件夹下。
-要在数据集上运行模型复现结果，请执行以下命令：
+The datasets used in this project have been preprocessed and placed in the processed_data folder.<br>
+To run the model on the dataset and reproduce the results, please execute the following commands:<>
+
 ```python
 python main.py --model <model> --dataset <dataset> # 加载预训练模型进行训练
 ```
 ```python
 python main.py --model <model> --dataset <dataset> --retrain # 重新训练模型
 ```
-其中，模型可以是 'TranAD'、'OmniAnomaly'、'DTAAD' 中的任意一个，数据集可以是 'SMAP'、'SMD'、 'NAB' 中的任意一个。
+where the model can be any one of 'TranAD', 'OmniAnomaly', or 'DTAAD', and the dataset can be any one of 'SMAP', 'SMD', or 'NAB'.
 
-### 三、基于重构的异常检测的整体流程梳理（重要）
+### 三、Overview of the Overall Process for Reconstruction-Based Anomaly Detection (Important)
     
-数据集以SMD的machine-1-1为例，将数据集划分为训练集`train`，测试集`test`和标签集`label`（标识测试集的异常情况），这些训练集，测试集和标签集全部是二维数组（28479×38），行代表时间步，检测的时间点（28479），列代表特征维度（38），一个二维数组中的一个数据就表示在一个时间点上检测的到的一个特征的数据， 
+Taking the SMD dataset's machine-1-1 as an example, the dataset is divided into a training set train, a test set test, and a label set label (which identifies anomalies in the test set). All these training, test, and label sets are two-dimensional arrays (28479×38), where rows represent time steps (28479 detection time points) and columns represent feature dimensions (38). A single data point in the two-dimensional array represents the data of one feature at one time point<br>
     
-以`TranAD`为例，将训练集和测试集都划分为窗口大小为10的窗口数据（10×38），窗口取数据时每次滑动一步，并把这一个个窗口以层的方式堆叠（`stack`）形成三维数组，将训练集输入模型，取该窗口中的最后一个时间步的数据（即当前时间步的数据）作为重构目标，计算模型重构出的数据和原始数据的均方误差（损失函数/异常分数），训练模型的目标是最小化这个损失函数， 
+Taking TranAD as an example, both the training set and the test set are divided into windowed data with a window size of 10 (10×38). When extracting data for each window, it slides one step at a time, and these windows are stacked layer by layer to form a three-dimensional array. The training set is input into the model, and the data at the last time step in the window (i.e., the data at the current time step) is taken as the reconstruction target. The mean squared error (loss function/anomaly score) between the data reconstructed by the model and the original data is calculated, and the goal of training the model is to minimize this loss function.<br>
 
-将训练集的所有异常分数通过`pot`算法计算出判断异常的阈值，具体说pot算法的原理是首先选择异常分数98%分位数作为初始阈值，超过98%数据的异常分数（即重构误差较大的值）即为很少量的峰值。 
+All anomaly scores of the training set are used to calculate the threshold for determining anomalies through the pot algorithm. Specifically, the principle of the pot algorithm is to first select the 98th percentile of the anomaly scores as the initial threshold. Anomaly scores exceeding 98% of the data (i.e., values with large reconstruction errors) are a small number of peaks.<br>
 
-这些峰值近似服从帕累托分布（类似高斯分布的统计模型），用帕累托曲线拟合这些峰值数据（计算得到`GDF`的两个参数）经过一个阈值计算式确定最终的用于判断异常的阈值，用这个阈值对测试数据集的异常分数判定，大于阈值的异常分数对应的时间点标记为异常，形成一个异常标记序列`pred`,再将`pred`与`label`比较计算`TP,TN`，（`TP`即`pred`和`label`同时为1，实际异常检测出来也是异常的时间点）进一步计算F1。
+These peaks approximately follow a Pareto distribution (a statistical model similar to the Gaussian distribution). The Pareto curve is used to fit these peak data (calculating the two parameters of the GDF), and the final threshold for determining anomalies is determined through a threshold calculation formula. This threshold is used to judge the anomaly scores of the test dataset. Time points with anomaly scores greater than the threshold are marked as anomalies, forming an anomaly  pred. Then, pred is compared with label to calculate TP and TN (where TP refers to time points where both pred and label are 1, i.e., actual anomalies that are detected as anomalies), and further calculate the F1 score.
 
-**时间序列异常检测的不同:**
-    
-检测时间序列异常需要进一步对上面得到的异常标记序列`pred`做出修正，具体通过一个函数方法（`adjust_predicts()`）实现，如果测试集的当前时间点数据被判定为异常（1）并且对应真实的标签位的也是异常（1）但尚未标记为异常段，回溯真实的标签位将`pred`对应的判定位修改为`True`(异常)，最后函数返回修正后的`pred`（具体为什么要这么做后面会做解释），再进行一般的`F1`计算。
+**POT Function in Time-Series Anomaly Detection:**
+To detect time-series anomalies, it is necessary to further correct the anomaly marker sequence pred obtained above. This is specifically achieved through a function method (adjust_predicts()). If the data at the current time point of the test set is determined to be an anomaly (marked as 1) and the corresponding real label is also an anomaly (marked as 1) but has not been marked as an anomaly segment, we trace back to the real label position and modify the corresponding judgment position in pred to True (indicating an anomaly). Finally, the function returns the corrected pred (the specific reason for doing this will be explained later), and then the general F1 calculation is performed.<br>
 
-### 四、项目构建思路
-核心模块由三个文件构成：  
-- `models.py`：包含多个核心深度学习模型的定义，是算法实现的基础。  
-- `backprop.py`：采用“基类+子类”的策略模式设计，基类定义训练和测试的通用接口，各模型子类继承后实现自身特有的训练与测试逻辑。  
-- `main.py`：程序入口，统筹模型加载、数据处理、训练测试流程及结果评估的完整执行逻辑。
-- 'pot.py':异常检测和评价指标判定模块。
 
-参数常量模块包括：
-- `constants.py`: 特定数据集的初始确定阈值的分位数水平，对SPOT计算的阈值进行最终缩放的缩放系数
-- `folderconstants.py`: 加载的数据存放的文件名
-- `parser.py`:命令行参数
-
-辅助工具模块包括：  
-- `Tranutils.py`：存放TranAD、DTAAD等模型所需的Transformer组件及其他专属架构实现。  
-- `utils.py`：提供通用工具函数支持。  
-- `plotting.py`：负责可视化功能，生成训练曲线、预测结果等图表。
-- `precrocessd.py`:数据预处理模块
-
-### 五、核心模块与流程
-
-#### 1. 数据层：加载与预处理
-- **数据来源**：通过 `load_dataset(args.dataset)` 加载数据集，包含训练集（`train_loader`）、测试集（`test_loader`）和异常标签（`labels`）。原始数据存储在 `data` 文件夹，预处理后的数据存储在 `processed_data` 文件夹。
-    - 详细的数据加载流程（SMD）：
-      加载数据集，每台机器数据单独训练，根据命令行传递的数据集名称统一加载训练集测试集标签集到一个loader中,后续再从loader中加载train_loader和test_loader。如对于第一台机器，加载machine-1-1-train.npy,machine-1-1.test.npy,machine-1-1-labels到一个数据加载器loader中。loader[0],loader[1],loader[2]就分别对应machine-1-1-train.npy,machine-1-1.test.npy,machine-1-1-labels。这里指定了加载的batch_size为一个.npy文件的所有数据，对SMD数据集而言，就是每次加载一个机器的全部测量数据。
-      
-- **窗口化处理（重点）**：
-  对于需要输入经过窗口化处理的数据的模型：
+### 四、 Project Construction 
+The core modules consist of three files:<br>
   
-  以TranAD为例，在SMD数据集的machine-1-1（28479×38）上进行测试和训练，设置窗口大小为10，每次一个窗口内的数据为（10×38），滑动窗口逻辑是 “以当前索引 i 为终点，向前截取 w_size 个时间步”。前面不足一个的窗口的数据填充统一填充第一个数据（这种做法也是因果卷积的思想，当前的窗口的最后一个时间的数据只能看到历史的数据信息）。 
+- `models.py`： Contains the definitions of multiple core deep learning models, which are the basis for algorithm implementation.<br>
+- `backprop.py`：Adopts a "base class + subclass" strategy pattern design. The base class defines general interfaces for training and testing, and each model subclass inherits and implements its own unique training and testing logic.<br>
+- `main.py`：The program entry, which coordinates the complete execution logic of model loading, data processing, training and testing processes, and result evaluation.<br>
+- 'pot.py':The module for anomaly detection and evaluation index determination.<br>
+Parameter constant modules include:<br>
+- `constants.py`:  The quantile level for initially determining the threshold for specific datasets, and the scaling factor for finally scaling the threshold calculated by SPOT.<br>
+- `folderconstants.py`: The file names where the loaded data is stored<br>
+- `parser.py`: Command-line parameters.<br>
 
-原始数据：28479 个时间步，每个时间步 38 个特征 → 形状(28479, 38)
-窗口（Window）：滑动窗口处理后，每个窗口是10 个连续时间步的片段 → 形状(10, 38)。
-总样本数：通过滑动窗口生成28479个窗口。
-批次（Batch）：训练时每次从 28479 个样本中取出 128 个窗口 → 形状(128, 10, 38)（128 个样本，每个样本 10 个时间步）。 
+Auxiliary tool modules include:
+- `Tranutils.py`: Stores Transformer components and other exclusive architecture implementations required by models such as TranAD and DTAAD.
+- `utils.py`: Provides support for general tool functions.
+- `plotting`.py: Responsible for visualization functions, generating training curves, prediction results, and other charts.
+- `preprocessd.py`: The data preprocessing module.
 
-  `convert_to_windows` 函数实现窗口化处理：  
-  - 对前 `w_size` 个时间步，用**首元素**填充缺失。  
-  - 对 `TranAD` 或 `Attention` 模型，保持 (10, 38) 的二维形状（保留时间步和特征的结构）进行Stack。其他模型（如果窗口大小是5）：窗口被展平为一维张量 w.view(-1)，形状为 (5×38=190,将 5 个时间步的 38 个特征拼接成 190 个特征)再Stack,拆成这样的窗口数据是为了并行计算，下图演示了这个过程和区别。**注意：下面这里的窗口并不是如图所示直接分割，而是每次移动一个步长滑动地分割**。
+### 五、 Core Modules and Processes
+
+#### 1.  Data Layer: Loading and Preprocessing
+- **Data Source**： The dataset is loaded through load_dataset(args.dataset), including the training set (train_loader), test set (test_loader), and anomaly labels (labels). Raw data is stored in the data folder, and preprocessed data is stored in the processed_data folder.<br>
+    - Detailed data loading process (SMD)：<br>
+      Load the dataset, train each machine's data separately, uniformly load the training set, test set, and label set into a loader according to the dataset name passed through the command line, and then load train_loader and test_loader from the loader. For example, for the first machine, load machine-1-1-train.npy, machine-1-1.test.npy, and machine-1-1-labels into a data loader. loader[0], loader[1], and loader[2] correspond to machine-1-1-train.npy, machine-1-1.test.npy, and machine-1-1-labels respectively. Here, the batch_size for loading is specified as all data in one .npy file. For the SMD dataset, this means loading all measurement data of one machine at a time.<br>
+      
+- **Windowing Processing (Key Point):**:
+For models that require input data processed through windowing:
+Taking TranAD as an example, when testing and training on the SMD dataset's machine-1-1 (28479×38), set the window size to 10. The data in each window is (10×38), and the sliding window logic is "taking the current index i as the end, and intercepting w_size time steps forward". For the first w_size time steps, the missing data in the window is filled with the first element uniformly (this approach is also based on the idea of causal convolution, where the data at the last time step of the current window can only see historical data information).<br>
+
+Original data: 28479 time steps, with 38 features per time step → shape (28479, 38)
+Window: After sliding window processing, each window is a segment of 10 consecutive time steps → shape (10, 38).
+Total number of samples: 28479 windows are generated through sliding the window.
+Batch: During training, 128 windows are taken from 28479 samples each time → shape (128, 10, 38) (128 samples, each with 10 time steps).<br>
+
+
+  The convert_to_windows function implements windowing processing:<br>
+  
+  For the first w_size time steps, fill the missing parts with the first element.
+For TranAD or Attention models, maintain the two-dimensional shape of (10, 38) (retaining the structure of time steps and features) for stacking. For other models (if the window size is 5): The window is flattened into a one-dimensional tensor w.view(-1) with a shape of (5×38=190, concatenating 38 features of 5 time steps into 190 features) and then stacked. The purpose of splitting into such window data is for parallel computing. The following figure demonstrates this process and the differences. <br>
+Note: The windows here are not directly divided as shown in the figure, but are split by sliding one step each time.<br>
 <img width="1457" height="563" alt="image" src="https://github.com/user-attachments/assets/9745e440-7dcc-4482-909c-297d400220e2" />
 
 
-#### 2. 模型层：多种深度学习模型支持
-  目前项目集成的深度学习模型如下，详细的模型介绍请参见文档**时序异常检测模型介绍.pdf**。
+#### 2. Model Layer: Support for Multiple Deep Learning Models
+  The deep learning models currently integrated in the project are as follows. For detailed model introductions, please refer to the document Introduction to Time-Series Anomaly Detection Models.pdf.<br>
 
-| 模型类型            | 核心逻辑                                                                  | 损失函数特点                                            |
-| ------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Autoencoder（基础） | 最简单的自编码器模型                                                      | 均方误差（MSE），直接衡量重构误差                       |
-| TranAD              | 基于Transformer的异常检测模型，捕捉长时序依赖，输出双预测结果（动态加权） | MSE，对两个预测结果用动态权重（随训练轮次变化）组合损失 |
-| OmniAnomaly         | 变分自编码器（VAE）变体，引入KL散度正则化                                 | MSE（重构损失）+ β×KL散度（正则化，避免过拟合）         |
-| DTAAD               | 双自编码器模型，两个自编码器相互约束，双TCN架构                           | 两个自编码器的损失组合（带动态权重，随训练轮次调整）    |
-#### 3. 加载模型
-  如果加载的是预训练模型，比如上次训练了10轮，那么这次会从11轮开是继续训练模型。
+| Model             | Core Logic                                                                                                                                     | Loss Function                                                                     |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Autoencoder（Basic） | The simplest autoencoder model                                                                                                                | Mean Squared Error (MSE), directly measuring reconstruction error                 |
+| TranAD               | Transformer-based anomaly detection model, capturing long time-series dependencies, outputting dual prediction results (dynamically weighted) |
+| OmniAnomaly          | A variant of Variational Autoencoder (VAE), introducing KL divergence regularization                                                          | MSE (reconstruction loss) + β×KL divergence (regularization to avoid overfitting) |
+| DTAAD                | Dual autoencoder model, with two autoencoders constraining each other, dual TCN architecture                                                  | with two autoencoders constraining each other, dual TCN architecture              |
+#### 3.  Loading the Model
+  If a pre-trained model is loaded, for example, if it was trained for 10 epochs last time, this time it will continue training from epoch 11.<br>
 
-#### 4. 训练与推理流程
-设计了包含训练和测试基类，不同模型继承并重写训练测试方法。如下图，基类。
+#### 4. Train And Test
+A base class for training and testing is designed, and different models inherit and rewrite the training and testing methods. As shown in the following figure, the base class.<br>
+
     
 <img width="1034" height="396" alt="image" src="https://github.com/user-attachments/assets/8549b5e0-2075-4005-9804-a78eb9ec1b16" /> 
     
-TranAD子类继承如下图:
+TranAD subclass inheritance is as shown in the following figure:<br>
     
 <img width="963" height="125" alt="image" src="https://github.com/user-attachments/assets/3cf7629a-ff35-4efb-be27-f2128ea81cc3" />
 
     
-- **训练模式（training=True）**：  
-  - 输入：窗口化的训练数据、模型、优化器（AdamW，带权重衰减防过拟合）、学习率调度器（StepLR，每5轮衰减为0.9倍）。  
-  - 过程：**根据模型类型**计算损失（如MSE），通过反向传播更新模型参数，记录损失和学习率。  
-  - 输出：本轮平均损失和当前学习率，用于监控训练过程。
+##### Training Mode (training=True):
+- **Input**: Windowed training data, model, optimizer (AdamW with weight decay to prevent overfitting), learning rate scheduler (StepLR, decaying to 0.9 times every 5 epochs).
+- **Process**: Calculate the loss according to the model type (such as MSE), update model parameters through backpropagation, and record the loss and learning rate.
+- **Output**: The average loss of the current epoch and the current learning rate, used to monitor the training process.
+Testing Mode (training=False):
+- **Input**: Windowed test data, trained model.
+- **Process**: Turn off gradient calculation, the model outputs prediction/reconstruction results, 循环计算每个特征的损失（38 times for the SMD dataset）, calculate the anomaly threshold using the POT algorithm, and evaluate. Average the losses of all features in the training set and test set for evaluation, and combine anomaly labels (mark as abnormal if any feature is abnormal).
+Print the evaluation results of each feature and the comprehensive evaluation results.
 
-- **测试模式（training=False）**：  
-  - 输入：窗口化的测试数据、训练好的模型。  
-  - 过程：关闭梯度计算，模型输出预测/重构结果，循环计算每个特征的损失（SMD数据集38次）用POT算法计算异常阈值并评估。平均训练集，测试集所有特征的损失进行评估，综合异常标签（只要有一个特征异常则标记为异常）
-  - 打印每个特征的评估结果和综合评估结果。
+##### 5. Model Saving and Loading
+- **Saving (save_model)**: Save model parameters, optimizer state, scheduler state, training epochs, and loss records to the path checkpoints/model name_dataset name/, facilitating resuming training after interruption or direct use for testing.
+- **Loading (load_model)**: Dynamically load the model class from src.models according to the model name. If a pre-trained model exists, load the parameters; otherwise, initialize a new model (supporting the retrain parameter to control whether to retrain).
 
-#### 5. 模型保存与加载
-- **保存（save_model）**：将模型参数、优化器状态、调度器状态、训练轮次、损失记录保存到 `checkpoints/模型名_数据集名/` 路径，方便中断后继续训练或直接用于测试。  
-- **加载（load_model）**：根据模型名动态加载 `src.models` 中的模型类，若存在预训练模型则加载参数，否则初始化新模型（支持 `retrain` 参数控制是否重新训练）。  
-
-
-#### 6. 异常判定
-**具体的pot算法流程：**
-  详细的pot算法原理参见
+#### 6.Anomaly Determination
+**Specific POT Algorithm Process:：**
+  For the detailed principle of the POT algorithm, please refer to
  
-   [pot原论文](https://dl.acm.org/doi/10.1145/3097983.3098144)
+   [pot Original Paper](https://dl.acm.org/doi/10.1145/3097983.3098144)<br>
 
- pot（Peak Over Threshold，峰值超过阈值）算法的目的是通过训练集的所有异常分数自动的选择判断异常的阈值，不用人为规定阈值，具体的步骤为：首先选择异常分数的98%分位数作为初始阈值，超过98%数据的异常分数（即重构误差较大的值）即为很少量的峰值，这些峰值近似服从广义帕累托分布（极端值的分布几乎独立于原始数据的分布，这一点与中心极限定理类似），用帕累托曲线拟合这些峰值数据（计算得到GDF的两个参数），最大似然估计（MLE）来估计参数gamma和beta经过一个阈值计算式确定最终的用于判断异常的阈值。
+ The purpose of the pot (Peak Over Threshold) algorithm is to automatically select the threshold for judging anomalies through all anomaly scores of the training set without manually specifying the threshold. The specific steps are: first, select the 98th percentile of the anomaly scores as the initial threshold. Anomaly scores exceeding 98% of the data (i.e., values with large reconstruction errors) are a small number of peaks. These peaks approximately follow a Generalized Pareto Distribution (the distribution of extreme values is almost independent of the distribution of the original data, similar to the Central Limit Theorem). The Pareto curve is used to fit these peak data (calculating the two parameters of the GDF). Maximum Likelihood Estimation (MLE) is used to estimate parameters gamma and beta, and the final threshold for judging anomalies is determined through a threshold calculation formula.<br>
   <img width="352" height="162" alt="5baa76da8e085671f1ea8d397d1f9d6" src="https://github.com/user-attachments/assets/5c021367-f3e5-4806-8d22-acda6042544f" />
 <br>
-下图展示了pot算法的调整，参考论文<br>
+The following figure shows the adjustment of the pot algorithm, referring to the paper<br>
 Abdulaal, Ahmed et al. "Practical Approach to Asynchronous Multivariate Time Series Anomaly Detection and Localization.",ACM SIGKDD Conference on Knowledge Discovery and Data Mining (2021)
   <img width="1314" height="782" alt="image" src="https://github.com/user-attachments/assets/4cb61443-e8f9-43be-8494-475ebd28ace0" />
 
+**SPOT Algorithm**<br>
+The spot algorithm applies the pot algorithm to streaming data. It first estimates the first n values using the pot algorithm to obtain the initial anomaly threshold. For subsequent data, it can perform anomaly labeling or update the threshold. If the observed data exceeds the threshold, it is regarded as an anomaly, and the anomaly value is not used to update the threshold. However, the spot algorithm requires the data to be relatively stable, with no obvious shift in the value distribution.
 
-**spot算法**
-  spot 算法则是把 pot 算法应用于流数据。它首先利用 pot 算法估计前 n 个值，得到初始异常阈值。对于后续数据，可进行异常标注或者更新阈值，若观测数据超过该阈值则视为异常，且异常值不用来更新阈值。不过，spot 算法要求数据比较稳定，值的分布没有明显的偏移情况。 
+**Judging Anomalies** 
 
-**判断异常** 
-
-  用这个阈值对测试数据集的异常分数判定，大于阈值的异常分数对应的时间点标记为异常，形成一个异常标记序列pred,再将pred与label比较计算TP,TN，（TP即pred和label同时为1，实际异常检测出来也是异常的时间点）进一步计算F1，检测时间序列异常需要通过一个函数方法（adjust_predicts()）对异常标记序列pred做出修正，如果测试集的当前时间点数据被判定为异常（True）并且对应真实的标签位的也是异常（True）但尚未标记为异常段，回溯真实的标签位将pred对应的判定位修改为True(异常)，最后函数返回修正后的pred,再进行一般的F1计算。 计算异常段数是为了计算平均检测延迟（总延迟/异常段数量），以异常段为单位统计延迟。延迟即从异常开始到算法多久检测到了异常的这段时间步。
+  This threshold is used to judge the anomaly scores of the test dataset. Time points with anomaly scores greater than the threshold are marked as anomalies, forming an anomaly  pred. Then, pred is compared with label to calculate TP and TN (where TP refers to time points where both pred and label are 1, i.e., actual anomalies that are detected as anomalies), and further calculate the F1 score. Detecting time-series anomalies requires correcting the anomaly  pred through a function method (adjust_predicts()). If the data at the current time point of the test set is determined to be an anomaly (True) and the corresponding real label is also an anomaly (True) but has not been marked as an anomaly segment, trace back the real label position and modify the corresponding judgment position in pred to True (anomaly). Finally, the function returns the corrected pred, and then the general F1 calculation is performed. The number of anomaly segments is calculated to calculate the average detection delay (total delay / number of anomaly segments), and the delay is counted on a per-anomaly-segment basis. Delay refers to the number of time steps from the start of the anomaly to when the algorithm detects the anomaly.<br>
   
-  下图演示了修正predict的过程,**注意实际actual和pred列表中存的是False和True,而非0,1,下图只是为了便于表示**
+he following figure demonstrates the process of correcting predict. Note that in the actual actual and pred lists, False and True are stored instead of 0 and 1. The following figure is only for ease of representation.<br>
 - <img width="1043" height="727" alt="image" src="https://github.com/user-attachments/assets/fd2beddf-6e4e-4350-a4b5-56834ab24253" />
 
 
-#### 7.检测指标
-该项目用到的检测指标说明
-
-| 指标名称  | 指标含义                                                           | 计算逻辑公式（简化）                                               | 核心作用                                                                  |
-| --------- | ------------------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| TP        | 模型预测为“异常”且实际确实是“异常”的样本数量（真正异常被正确识别） | $TP = $预测异常 ∩ 实际异常的样本数                                 | 衡量模型“抓异常”的基础能力，是召回率、F1 等指标的基础                     |
-| TN        | 模型预测为“正常”且实际确实是“正常”的样本数量（真正正常被正确识别） | $TN = $预测正常 ∩ 实际正常的样本数                                 | 衡量模型“认正常”的基础能力，体现对正常样本的辨别精度                      |
-| FP        | 模型预测为“异常”但实际是“正常”的样本数量（正常样本被误判为异常）   | $FP = $预测异常 ∩ 实际正常的样本数                                 | 反映“误报”情况，误报越多说明模型对正常样本的干扰越敏感                    |
-| FN        | 模型预测为“正常”但实际是“异常”的样本数量（异常样本被漏判为正常）   | $FN = $预测正常 ∩ 实际异常的样本数                                 | 反映“漏检”情况，漏检越多说明模型对异常样本的覆盖能力越差                  |
-| precision | 预测为“异常”的样本中，真正是“异常”的比例                           | $precision = \frac{TP}{TP + FP}$                                   | 衡量“预测异常的样本里，有多少真异常”，侧重**减少误报**                    |
-| recall    | 实际是“异常”的样本中，被模型预测为“异常”的比例                     | $recall = \frac{TP}{TP + FN}$                                      | 衡量“真实异常里，有多少被模型找到”，侧重**减少漏检**                      |
-| F1        | 精确率和召回率的调和平均，平衡“不误报”和“不漏检”的综合表现         | $f1 = \frac{2 \times precision \times recall}{precision + recall}$ | 综合评估模型在“误报”和“漏检”之间的权衡能力，适合整体效果对比              |
-| ROC/AUC   | ROC 曲线下的面积（ROC 曲线基于不同阈值下 TPR 和 FPR 绘制）         | 基于所有可能阈值下，TPR（召回率）与 FPR（假正率）的曲线面积计算    | 衡量模型**区分异常与正常样本的能力**，与阈值无关，值越接近 1 区分能力越强 |
+#### 7.Detection Indicators
+Explanation of the detection indicators used in the project
 
 
-<<<<<<< HEAD
-=======
-超参数设置与原论文保持一致
-
-参数设置如下表:<br>
-### 参数设置 
-
-| 模型       | 超参数配置                                                                 |
-|------------|--------------------------------------------------------------------------|
-| OmniAnomaly | • batch_size: 128<br>• window_size: 10                                   |
-| TranAD     | • batch_size: 128<br>• window_size: 10                                   |
-| TFMAE      | • batch_size: 64<br>• window_size: 10<br>• Frequency Masking Ratio: SMD(20%)、SMAP(30%)、MSL(40%)<br>• Temporal Masking Ratio: SMD(5%)、SMAP(65%)、MSL(55%) |
-| DTAAD      | 见下图 |
-| USAD       |       见下图                          |
-
-
-DTAAD  <br>                        
-<img width="567" height="197" alt="image" src="https://github.com/user-attachments/assets/26e3a797-9447-4384-8c3f-3503e3f00099" />
-
-USAD <br>
-![img.png](Hyper-parameters/img.png)
-
-
-lr(学习率):
-'SMD': 0.0001,
-'SMAP': 0.001,
-'MSL': 0.002,
-
-
-
-| model       |        | SMD    |        |        |        | MSL    |        |        |        | SMAP   |        |        |
-|-------------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------|
-|             | F1     | AUC    | R      | P      | F1     | AUC    | R      | P      | F1     | AUC    | R      | P      |
-| OnmiAnomaly | 0.9400 | 0.9945 | 0.9984 | 0.8880 | 0.8764 | 0.9781 | 0.9923 | 0.8713   | 0.8727 | 0.9888 | 0.9418 | 0.8129 |
-| USAD        | 0.9430 | 0.9926 | 0.9973 | 0.9038 | 0.9495 | 0.9916 | 0.9999 | 0.8414  | 0.8419 | 0.9890 | 0.9627 | 0.7480 |
-| TranAD      | 0.9981 | 0.9986 | 0.9974 | 0.9988 | 0.9480 | 0.9912 | 0.9999 | 0.9011 | 0.8915 | 0.9921 | 0.9999 | 0.8043 |
-| TEMAE       | 0.9124 | 0.9045 | 0.9107 | 0.9141 | 0.9515 | 0.9915 | 0.9759 | 0.9283 | 0.9690 | 0.9923 | 0.9919 | 0.9471 |
-| DTAAD       | 0.9974 | 0.9986 | 0.9974 | 0.9981 | 0.9495 | 0.9916 | 0.9999 | 0.9038 | 0.9023 | 0.9912 | 0.9999 | 0.8220 |
->>>>>>> 204efc67d93dac0a48991cf61821ad510390f07b
+| Metric Name | Metric Meaning                                                                                                                    | Simplified Calculation Formula                                                                                        | Core Function                                                                                                                                                                             |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TP          | Number of samples predicted as "anomalous" by the model and actually "anomalous" (true anomalies correctly identified)            | $TP = $ Number of samples in the intersection of predicted anomalies and actual anomalies                             | Measures the model's basic ability to "catch anomalies" and is the foundation for metrics like recall and F1                                                                              |
+| TN          | Number of samples predicted as "normal" by the model and actually "normal" (true normals correctly identified)                    | $TN = $ Number of samples in the intersection of predicted normals and actual normals                                 | Measures the model's basic ability to "recognize normals" and reflects the accuracy in distinguishing normal samples                                                                      |
+| FP          | Number of samples predicted as "anomalous" by the model but actually "normal" (normal samples falsely judged as anomalies)        | $FP = $ Number of samples in the intersection of predicted anomalies and actual normals                               | Reflects the "false positive" situation; more false positives indicate the model is more sensitive to interference from normal samples                                                    |
+| FN          | Number of samples predicted as "normal" by the model but actually "anomalous" (anomalous samples missed as normal)                | $FN = $ Number of samples in the intersection of predicted normals and actual anomalies                               | Reflects the "missed detection" situation; more missed detections indicate the model has poorer coverage of anomalous samples                                                             |
+| precision   | Proportion of samples predicted as "anomalous" that are actually "anomalous"                                                      | $precision = \frac{TP}{TP + FP}$                                                                                      | Measures "how many of the predicted anomalous samples are truly anomalous," focusing on **reducing false positives**                                                                      |
+| recall      | Proportion of actually "anomalous" samples that are predicted as "anomalous" by the model                                         | $recall = \frac{TP}{TP + FN}$                                                                                         | Measures "how many of the truly anomalous samples are found by the model," focusing on **reducing missed detections**                                                                     |
+| F1          | Harmonic mean of precision and recall, balancing the comprehensive performance of "no false positives" and "no missed detections" | $f1 = \frac{2 \times precision \times recall}{precision + recall}$                                                    | Comprehensively evaluates the model's ability to balance "false positives" and "missed detections," suitable for overall performance comparison                                           |
+| ROC/AUC     | Area under the ROC curve (ROC curve is plotted based on TPR and FPR under different thresholds)                                   | Calculated based on the area of the curve of TPR (recall) and FPR (false positive rate) under all possible thresholds | Measures the model's **ability to distinguish between anomalous and normal samples**, independent of the threshold; the closer the value is to 1, the stronger the discrimination ability |
