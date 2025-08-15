@@ -86,7 +86,11 @@ Note: The windows here are not directly divided as shown in the figure, but are 
 #### 2. Model Layer: Support for Multiple Deep Learning Models
   The deep learning models currently integrated in the project are as follows. For detailed model introductions, please refer to the document Introduction to Time-Series Anomaly Detection Models.pdf.<br>
 
+<<<<<<< HEAD
 | 模型类型             | 核心逻辑                                                                                                                                      | 损失函数特点                                                                      |
+=======
+| Model             | Core Logic                                                                                                                                     | Loss Function                                                                     |
+>>>>>>> 8825f4817ea27e3850b70a239c69495e8b33a896
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | Autoencoder（Basic） | The simplest autoencoder model                                                                                                                | Mean Squared Error (MSE), directly measuring reconstruction error                 |
 | TranAD               | Transformer-based anomaly detection model, capturing long time-series dependencies, outputting dual prediction results (dynamically weighted) |
@@ -94,10 +98,17 @@ Note: The windows here are not directly divided as shown in the figure, but are 
 | DTAAD                | Dual autoencoder model, with two autoencoders constraining each other, dual TCN architecture                                                  | with two autoencoders constraining each other, dual TCN architecture              |
 #### 3.  Loading the Model
   If a pre-trained model is loaded, for example, if it was trained for 10 epochs last time, this time it will continue training from epoch 11.<br>
+<<<<<<< HEAD
 
 #### 4. 训练与推理流程
 A base class for training and testing is designed, and different models inherit and rewrite the training and testing methods. As shown in the following figure, the base class.<br>
 
+=======
+
+#### 4. Train And Test
+A base class for training and testing is designed, and different models inherit and rewrite the training and testing methods. As shown in the following figure, the base class.<br>
+
+>>>>>>> 8825f4817ea27e3850b70a239c69495e8b33a896
     
 <img width="1034" height="396" alt="image" src="https://github.com/user-attachments/assets/8549b5e0-2075-4005-9804-a78eb9ec1b16" /> 
     
@@ -137,7 +148,11 @@ The spot algorithm applies the pot algorithm to streaming data. It first estimat
 
 **Judging Anomalies** 
 
+<<<<<<< HEAD
   This threshold is used to judge the anomaly scores of the test dataset. Time points with anomaly scores greater than the threshold are marked as anomalies, forming an anomaly  pred. Then, pred is compared with label to calculate TP and TN (where TP refers to time points where both pred and label are 1, i.e., actual anomalies that are detected as anomalies), and further calculate the F1 score. Detecting time-series anomalies requires correcting the anomaly 标记序列 pred through a function method (adjust_predicts()). If the data at the current time point of the test set is determined to be an anomaly (True) and the corresponding real label is also an anomaly (True) but has not been marked as an anomaly segment, trace back the real label position and modify the corresponding judgment position in pred to True (anomaly). Finally, the function returns the corrected pred, and then the general F1 calculation is performed. The number of anomaly segments is calculated to calculate the average detection delay (total delay / number of anomaly segments), and the delay is counted on a per-anomaly-segment basis. Delay refers to the number of time steps from the start of the anomaly to when the algorithm detects the anomaly.<br>
+=======
+  This threshold is used to judge the anomaly scores of the test dataset. Time points with anomaly scores greater than the threshold are marked as anomalies, forming an anomaly  pred. Then, pred is compared with label to calculate TP and TN (where TP refers to time points where both pred and label are 1, i.e., actual anomalies that are detected as anomalies), and further calculate the F1 score. Detecting time-series anomalies requires correcting the anomaly  pred through a function method (adjust_predicts()). If the data at the current time point of the test set is determined to be an anomaly (True) and the corresponding real label is also an anomaly (True) but has not been marked as an anomaly segment, trace back the real label position and modify the corresponding judgment position in pred to True (anomaly). Finally, the function returns the corrected pred, and then the general F1 calculation is performed. The number of anomaly segments is calculated to calculate the average detection delay (total delay / number of anomaly segments), and the delay is counted on a per-anomaly-segment basis. Delay refers to the number of time steps from the start of the anomaly to when the algorithm detects the anomaly.<br>
+>>>>>>> 8825f4817ea27e3850b70a239c69495e8b33a896
   
 he following figure demonstrates the process of correcting predict. Note that in the actual actual and pred lists, False and True are stored instead of 0 and 1. The following figure is only for ease of representation.<br>
 - <img width="1043" height="727" alt="image" src="https://github.com/user-attachments/assets/fd2beddf-6e4e-4350-a4b5-56834ab24253" />
@@ -156,4 +171,8 @@ Explanation of the detection indicators used in the project
 | precision   | Proportion of samples predicted as "anomalous" that are actually "anomalous"                                                      | $precision = \frac{TP}{TP + FP}$                                                                                      | Measures "how many of the predicted anomalous samples are truly anomalous," focusing on **reducing false positives**                                                                      |
 | recall      | Proportion of actually "anomalous" samples that are predicted as "anomalous" by the model                                         | $recall = \frac{TP}{TP + FN}$                                                                                         | Measures "how many of the truly anomalous samples are found by the model," focusing on **reducing missed detections**                                                                     |
 | F1          | Harmonic mean of precision and recall, balancing the comprehensive performance of "no false positives" and "no missed detections" | $f1 = \frac{2 \times precision \times recall}{precision + recall}$                                                    | Comprehensively evaluates the model's ability to balance "false positives" and "missed detections," suitable for overall performance comparison                                           |
+<<<<<<< HEAD
 | ROC/AUC     | Area under the ROC curve (ROC curve is plotted based on TPR and FPR under different thresholds)                                   | Calculated based on the area of the curve of TPR (recall) and FPR (false positive rate) under all possible thresholds | Measures the model's **ability to distinguish between anomalous and normal samples**, independent of the threshold; the closer the value is to 1, the stronger the discrimination ability |
+=======
+| ROC/AUC     | Area under the ROC curve (ROC curve is plotted based on TPR and FPR under different thresholds)                                   | Calculated based on the area of the curve of TPR (recall) and FPR (false positive rate) under all possible thresholds | Measures the model's **ability to distinguish between anomalous and normal samples**, independent of the threshold; the closer the value is to 1, the stronger the discrimination ability |
+>>>>>>> 8825f4817ea27e3850b70a239c69495e8b33a896
