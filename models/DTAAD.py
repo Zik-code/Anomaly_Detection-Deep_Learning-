@@ -1,3 +1,9 @@
+'''
+Ling-rui, Y., Qiu-hong, L., & Yang, X. (2024) DTAAD: 
+Dual Tcn-Attention Networks for Anomaly Detection in
+ Multivariate Time Series Data, Knowledge-based systems, 295
+'''
+
 import math
 import torch.nn as nn
 from torch.nn import TransformerEncoder

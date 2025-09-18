@@ -1,3 +1,11 @@
+'''
+Ya, S., Youjian, Z., Chenhao, N., Rong, L., Wei, S., & Dan, P. (2019) 
+Robust Anomaly Detection for Multivariate Time Series Through Stochastic
+ Recurrent Neural Network, ACM SIGKDD Conference on Knowledge Discovery  
+ and Data Mining: 2828-2837.
+'''
+
+
 import torch
 import torch.nn as nn
 from src.constants import lr

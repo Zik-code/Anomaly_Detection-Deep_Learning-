@@ -1,8 +1,12 @@
+'''
+Julien, A., Pietro, M., Frederic, G., Sebastien, M., & Maria A., Z. (2020) 
+USAD: UnSupervised Anomaly Detection on Multivariate Time Series, ACM 
+SIGKDD Conference on Knowledge Discovery and Data Mining
+'''
+
 import torch
 import torch.nn as nn
 torch.manual_seed(1)
-
-
 
 ## USAD Model (KDD 20)
 class USAD(nn.Module):

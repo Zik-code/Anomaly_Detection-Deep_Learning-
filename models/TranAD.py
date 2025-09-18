@@ -1,3 +1,9 @@
+'''
+Shreshth, T., Giuliano, C., & Nicholas R., J. (2022) TranAD:
+Deep Transformer Networks for Anomaly Detection in Multivariate 
+Time Series Data., Proceedings of the VLDB Endowment, 15.6: 1201-1214.
+'''
+
 import math
 import torch
 import torch.nn as nn
